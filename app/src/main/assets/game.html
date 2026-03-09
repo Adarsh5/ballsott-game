@@ -1,0 +1,721 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,user-scalable=no">
+<title>Ball Sort Puzzle</title>
+<link href="https://fonts.googleapis.com/css2?family=Baloo+2:wght@400;600;700;800&family=Poppins:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+:root{
+  --bg1:#0a1628;--bg2:#0d2137;--bg3:#112a45;
+  --glass:rgba(255,255,255,0.07);--glass-border:rgba(255,255,255,0.13);
+  --gold:#ffc947;--white:rgba(255,255,255,0.92);
+  --tube-w:58px;--ball-size:42px;--tube-pad:7px;
+}
+*{margin:0;padding:0;box-sizing:border-box;-webkit-tap-highlight-color:transparent;touch-action:manipulation}
+html,body{width:100%;height:100%;overflow:hidden}
+
+body{
+  background:linear-gradient(160deg,var(--bg1) 0%,var(--bg2) 50%,var(--bg3) 100%);
+  font-family:'Poppins',sans-serif;
+  display:flex;flex-direction:column;align-items:center;
+  min-height:100vh;position:relative;overflow:hidden;
+}
+
+/* Animated bubbles bg */
+.bubble{
+  position:fixed;border-radius:50%;
+  background:radial-gradient(circle at 30% 30%,rgba(255,255,255,0.08),rgba(255,255,255,0.01));
+  border:1px solid rgba(255,255,255,0.05);
+  animation:rise linear infinite;pointer-events:none;z-index:0;
+}
+@keyframes rise{0%{transform:translateY(110vh) scale(0.8);opacity:0}
+10%{opacity:1}90%{opacity:0.5}100%{transform:translateY(-10vh) scale(1.1);opacity:0}}
+
+#app{
+  position:relative;z-index:1;
+  width:100%;max-width:420px;
+  display:flex;flex-direction:column;align-items:center;
+  height:100vh;padding-bottom:58px;
+}
+
+/* ── HEADER ── */
+#header{
+  width:100%;padding:14px 20px 10px;
+  display:flex;justify-content:space-between;align-items:center;
+}
+#logo{
+  font-family:'Baloo 2',cursive;font-size:22px;font-weight:800;
+  background:linear-gradient(90deg,#7ee8fa,#80ff72);
+  -webkit-background-clip:text;-webkit-text-fill-color:transparent;
+  filter:drop-shadow(0 0 10px rgba(126,232,250,0.4));
+  letter-spacing:.5px;
+}
+.hbox{
+  background:var(--glass);border:1px solid var(--glass-border);
+  border-radius:14px;padding:5px 14px;text-align:center;
+  backdrop-filter:blur(10px);
+}
+.hbox-val{font-family:'Baloo 2';font-size:20px;font-weight:700;color:var(--gold);line-height:1.1}
+.hbox-lbl{font-size:9px;color:rgba(255,255,255,0.4);font-weight:600;letter-spacing:1.5px;text-transform:uppercase}
+
+/* ── LEVEL BAR ── */
+#lvl-bar{
+  width:90%;display:flex;align-items:center;gap:10px;
+  margin:4px 0 12px;
+}
+#lvl-txt{font-size:11px;color:rgba(255,255,255,0.45);font-weight:600;white-space:nowrap}
+#lvl-track{flex:1;height:6px;background:rgba(255,255,255,0.08);border-radius:6px;overflow:hidden}
+#lvl-fill{height:100%;border-radius:6px;background:linear-gradient(90deg,#7ee8fa,#80ff72);
+  transition:width .5s ease;box-shadow:0 0 8px rgba(126,232,250,0.5)}
+
+/* ── TUBES AREA ── */
+#tubes-wrap{
+  flex:1;width:100%;display:flex;align-items:center;justify-content:center;
+  padding:0 12px;
+}
+#tubes{
+  display:flex;flex-wrap:wrap;justify-content:center;
+  gap:10px;width:100%;
+}
+
+/* ── TUBE ── */
+.tube{
+  width:var(--tube-w);
+  background:rgba(255,255,255,0.04);
+  border:1.5px solid rgba(255,255,255,0.12);
+  border-bottom:3px solid rgba(255,255,255,0.18);
+  border-radius:0 0 30px 30px;
+  border-top:none;
+  padding:var(--tube-pad) var(--tube-pad) calc(var(--tube-pad) + 4px);
+  display:flex;flex-direction:column;align-items:center;justify-content:flex-end;
+  gap:4px;
+  cursor:pointer;
+  position:relative;
+  transition:transform .18s cubic-bezier(.34,1.56,.64,1), box-shadow .18s;
+  min-height:calc(4 * var(--ball-size) + 3*4px + 2*var(--tube-pad) + 10px);
+  backdrop-filter:blur(4px);
+  user-select:none;
+}
+/* Glass tube highlight */
+.tube::before{
+  content:'';position:absolute;top:0;left:6px;width:6px;
+  height:70%;background:linear-gradient(180deg,rgba(255,255,255,0.15),transparent);
+  border-radius:0 0 4px 4px;pointer-events:none;
+}
+/* Tube cap top */
+.tube::after{
+  content:'';position:absolute;top:-6px;left:-2px;right:-2px;height:8px;
+  background:rgba(255,255,255,0.08);border:1.5px solid rgba(255,255,255,0.12);
+  border-bottom:none;border-radius:6px 6px 0 0;pointer-events:none;
+}
+.tube.selected{
+  transform:translateY(-14px);
+  box-shadow:0 0 0 2px rgba(126,232,250,0.6),0 12px 30px rgba(126,232,250,0.2);
+  border-color:rgba(126,232,250,0.5);
+}
+.tube.valid-target{
+  box-shadow:0 0 0 2px rgba(128,255,114,0.5),0 8px 20px rgba(128,255,114,0.15);
+  border-color:rgba(128,255,114,0.4);
+  animation:pulseValid .7s ease infinite;
+}
+@keyframes pulseValid{0%,100%{transform:scale(1)}50%{transform:scale(1.03)}}
+.tube.invalid-shake{animation:shake .35s ease}
+@keyframes shake{0%{transform:translateX(0)}20%{transform:translateX(-6px)}40%{transform:translateX(6px)}60%{transform:translateX(-4px)}80%{transform:translateX(4px)}100%{transform:translateX(0)}}
+.tube.solved{
+  border-color:rgba(128,255,114,0.5);
+  box-shadow:0 0 20px rgba(128,255,114,0.2);
+}
+
+/* ── BALL ── */
+.ball{
+  width:var(--ball-size);height:var(--ball-size);
+  border-radius:50%;flex-shrink:0;
+  position:relative;transition:transform .15s;
+}
+/* Glossy specular highlight */
+.ball::before{
+  content:'';position:absolute;top:5px;left:7px;width:40%;height:35%;
+  background:radial-gradient(circle,rgba(255,255,255,0.55),transparent);
+  border-radius:50%;
+}
+.ball::after{
+  content:'';position:absolute;inset:0;border-radius:50%;
+  background:radial-gradient(circle at 70% 70%,rgba(0,0,0,0.18),transparent 60%);
+}
+
+/* Ball colors */
+.c0{background:radial-gradient(circle at 35% 35%,#ff8a80,#c62828);box-shadow:0 3px 10px rgba(198,40,40,.4)}
+.c1{background:radial-gradient(circle at 35% 35%,#ffcc02,#e65100);box-shadow:0 3px 10px rgba(230,81,0,.4)}
+.c2{background:radial-gradient(circle at 35% 35%,#fff176,#f9a825);box-shadow:0 3px 10px rgba(249,168,37,.4)}
+.c3{background:radial-gradient(circle at 35% 35%,#a5d6a7,#2e7d32);box-shadow:0 3px 10px rgba(46,125,50,.4)}
+.c4{background:radial-gradient(circle at 35% 35%,#80deea,#00695c);box-shadow:0 3px 10px rgba(0,105,92,.4)}
+.c5{background:radial-gradient(circle at 35% 35%,#90caf9,#1565c0);box-shadow:0 3px 10px rgba(21,101,192,.4)}
+.c6{background:radial-gradient(circle at 35% 35%,#ce93d8,#6a1b9a);box-shadow:0 3px 10px rgba(106,27,154,.4)}
+.c7{background:radial-gradient(circle at 35% 35%,#f48fb1,#880e4f);box-shadow:0 3px 10px rgba(136,14,79,.4)}
+
+/* Top ball in selected tube lifts a bit */
+.tube.selected .ball:last-child{transform:translateY(-8px)}
+
+/* ── CONTROLS ── */
+#controls{
+  display:flex;gap:10px;margin:10px 0 8px;
+}
+.btn{
+  font-family:'Baloo 2';font-weight:700;font-size:14px;
+  border:none;border-radius:50px;padding:10px 20px;
+  cursor:pointer;transition:transform .1s,filter .1s;
+  display:flex;align-items:center;gap:6px;
+}
+.btn:active{transform:scale(.92)}
+.btn-undo{background:rgba(255,255,255,0.1);color:rgba(255,255,255,0.85);
+  border:1px solid rgba(255,255,255,0.15)}
+.btn-restart{background:rgba(255,100,100,0.15);color:#ff8a80;
+  border:1px solid rgba(255,100,100,0.25)}
+.btn-hint{background:linear-gradient(135deg,#ffc947,#ff9800);color:#1a1000;
+  box-shadow:0 4px 14px rgba(255,201,71,.35)}
+
+/* ── FLYING BALL ── */
+#fly-ball{
+  position:fixed;pointer-events:none;z-index:500;
+  width:var(--ball-size);height:var(--ball-size);border-radius:50%;
+  display:none;
+}
+#fly-ball::before{
+  content:'';position:absolute;top:5px;left:7px;width:40%;height:35%;
+  background:radial-gradient(circle,rgba(255,255,255,0.55),transparent);
+  border-radius:50%;
+}
+
+/* ── WIN OVERLAY ── */
+#win-overlay{
+  display:none;position:fixed;inset:0;
+  background:rgba(5,15,30,0.85);backdrop-filter:blur(8px);
+  z-index:300;align-items:center;justify-content:center;flex-direction:column;
+}
+#win-overlay.show{display:flex}
+#win-card{
+  background:linear-gradient(135deg,rgba(20,35,60,0.95),rgba(10,22,40,0.98));
+  border:1px solid rgba(128,255,114,0.3);
+  border-radius:28px;padding:36px 40px;text-align:center;
+  box-shadow:0 0 60px rgba(128,255,114,0.2),0 25px 60px rgba(0,0,0,0.5);
+  animation:cardPop .5s cubic-bezier(.34,1.56,.64,1);min-width:280px;
+}
+@keyframes cardPop{from{transform:scale(.4);opacity:0}to{transform:scale(1);opacity:1}}
+#win-emoji{font-size:64px;margin-bottom:8px;animation:bounce 1s ease infinite}
+@keyframes bounce{0%,100%{transform:translateY(0)}50%{transform:translateY(-10px)}}
+#win-title{font-family:'Baloo 2';font-size:34px;font-weight:800;
+  background:linear-gradient(90deg,#7ee8fa,#80ff72);
+  -webkit-background-clip:text;-webkit-text-fill-color:transparent;margin-bottom:4px}
+#win-sub{color:rgba(255,255,255,0.55);font-size:13px;margin-bottom:6px}
+#win-lvl{font-family:'Baloo 2';font-size:48px;font-weight:800;color:var(--gold);line-height:1}
+.star-row{font-size:28px;margin:10px 0 20px;letter-spacing:4px}
+.btn-next{
+  font-family:'Baloo 2';font-weight:800;font-size:16px;
+  background:linear-gradient(135deg,#7ee8fa,#80ff72);
+  color:#0a1628;border:none;border-radius:50px;
+  padding:14px 36px;cursor:pointer;width:100%;
+  box-shadow:0 6px 20px rgba(126,232,250,0.35);
+  transition:transform .1s;
+}
+.btn-next:active{transform:scale(.95)}
+
+/* ── PARTICLES ── */
+.particle{
+  position:fixed;pointer-events:none;z-index:200;
+  width:10px;height:10px;border-radius:50%;
+  animation:particleFly .8s ease forwards;
+}
+@keyframes particleFly{
+  0%{transform:translate(0,0) scale(1);opacity:1}
+  100%{transform:translate(var(--tx),var(--ty)) scale(0);opacity:0}
+}
+
+/* ── META BANNER ── */
+#meta-banner{
+  position:fixed;bottom:0;left:0;right:0;height:58px;
+  background:#fff;border-top:1px solid #e8e8e8;
+  display:flex;align-items:center;justify-content:center;
+  gap:10px;z-index:50;
+  font-family:'Poppins',sans-serif;
+}
+.ad-badge{
+  background:#1877f2;color:white;font-size:10px;font-weight:700;
+  padding:2px 6px;border-radius:4px;letter-spacing:.5px;
+}
+#meta-banner span{color:#888;font-size:12px}
+#meta-banner strong{color:#1877f2;font-size:13px;font-weight:700}
+
+/* ── META INTERSTITIAL ── */
+#meta-inter{
+  display:none;position:fixed;inset:0;
+  background:rgba(0,0,0,0.92);z-index:600;
+  align-items:center;justify-content:center;flex-direction:column;
+}
+#meta-inter.show{display:flex}
+#ad-card{
+  background:white;border-radius:20px;width:310px;overflow:hidden;
+  box-shadow:0 25px 60px rgba(0,0,0,0.6);
+}
+#ad-head{
+  background:#1877f2;padding:10px 16px;
+  display:flex;justify-content:space-between;align-items:center;
+}
+#ad-head span{color:white;font-size:12px;font-weight:600;font-family:'Poppins'}
+#ad-head small{color:rgba(255,255,255,.65);font-size:11px;font-family:'Poppins'}
+#ad-creative{
+  height:190px;background:linear-gradient(135deg,#e3f2fd,#bbdefb);
+  display:flex;flex-direction:column;align-items:center;justify-content:center;gap:8px;
+}
+#ad-creative .ad-icon{font-size:52px}
+#ad-creative p{font-size:15px;color:#1a237e;font-weight:700;font-family:'Poppins'}
+#ad-creative small{font-size:11px;color:#546e7a;font-family:'Poppins'}
+#ad-cta{
+  background:#1877f2;color:white;border:none;width:100%;
+  padding:14px;font-size:15px;font-weight:700;font-family:'Baloo 2';
+  cursor:pointer;letter-spacing:.5px;
+}
+#ad-skip-wrap{margin-top:16px;text-align:center}
+#ad-skip{
+  color:rgba(255,255,255,.55);font-size:13px;
+  cursor:pointer;font-family:'Poppins';text-decoration:underline;
+}
+#ad-countdown-txt{color:rgba(255,255,255,.35);font-size:11px;font-family:'Poppins';margin-top:5px}
+</style>
+</head>
+<body>
+
+<!-- Floating bubbles -->
+<div class="bubble" style="width:80px;height:80px;left:10%;animation-duration:18s;animation-delay:0s"></div>
+<div class="bubble" style="width:50px;height:50px;left:75%;animation-duration:22s;animation-delay:5s"></div>
+<div class="bubble" style="width:35px;height:35px;left:45%;animation-duration:15s;animation-delay:10s"></div>
+<div class="bubble" style="width:60px;height:60px;left:25%;animation-duration:25s;animation-delay:2s"></div>
+<div class="bubble" style="width:25px;height:25px;left:85%;animation-duration:19s;animation-delay:8s"></div>
+
+<div id="app">
+  <!-- Header -->
+  <div id="header">
+    <div id="logo">🔮 BallSort</div>
+    <div style="display:flex;gap:8px">
+      <div class="hbox">
+        <div class="hbox-val" id="h-level">1</div>
+        <div class="hbox-lbl">Level</div>
+      </div>
+      <div class="hbox">
+        <div class="hbox-val" id="h-moves">0</div>
+        <div class="hbox-lbl">Moves</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Level progress -->
+  <div id="lvl-bar">
+    <span id="lvl-txt">Level 1 / 20</span>
+    <div id="lvl-track"><div id="lvl-fill" style="width:5%"></div></div>
+  </div>
+
+  <!-- Tubes -->
+  <div id="tubes-wrap">
+    <div id="tubes"></div>
+  </div>
+
+  <!-- Controls -->
+  <div id="controls">
+    <button class="btn btn-undo" onclick="undo()">↩ Undo</button>
+    <button class="btn btn-hint" onclick="showHint()">💡 Hint</button>
+    <button class="btn btn-restart" onclick="restartLevel()">🔄 Restart</button>
+  </div>
+</div>
+
+<!-- Flying ball (animation) -->
+<div id="fly-ball"></div>
+
+<!-- Win overlay -->
+<div id="win-overlay">
+  <div id="win-card">
+    <div id="win-emoji">🎉</div>
+    <div id="win-title">Solved!</div>
+    <div id="win-sub">Level completed</div>
+    <div id="win-lvl">1</div>
+    <div class="star-row" id="star-row">⭐⭐⭐</div>
+    <button class="btn-next" onclick="nextLevel()">Next Level →</button>
+  </div>
+</div>
+
+<!-- Meta Banner -->
+<div id="meta-banner">
+  <span class="ad-badge">AD</span>
+  <strong>Meta Audience Network</strong>
+  <span>· Banner Placeholder ·</span>
+  <span class="ad-badge" style="background:#eee;color:#aaa">320×50</span>
+</div>
+
+<!-- Meta Interstitial -->
+<div id="meta-inter">
+  <div id="ad-card">
+    <div id="ad-head">
+      <span>📢 Advertisement</span>
+      <small>Meta Audience Network</small>
+    </div>
+    <div id="ad-creative">
+      <div class="ad-icon">🎯</div>
+      <p>Your Ad Appears Here</p>
+      <small>Interstitial · Full Screen Ad</small>
+    </div>
+    <button id="ad-cta" onclick="closeInterAd()">INSTALL NOW →</button>
+  </div>
+  <div id="ad-skip-wrap">
+    <div id="ad-countdown-txt">Ad closes in <span id="ad-cd">5</span>s</div>
+    <div id="ad-skip" onclick="closeInterAd()">Skip Ad ✕</div>
+  </div>
+</div>
+
+<script>
+// ════════════════════════════════════════════
+//  BALL SORT PUZZLE — Core Game Engine
+// ════════════════════════════════════════════
+
+const BALL_COLORS = 8;  // max colors available
+const TUBE_CAPACITY = 4;
+
+// Level config: [numColors, extraEmptyTubes]
+const LEVEL_CFG = [
+  [3,2],[4,2],[4,2],[5,2],[5,2],
+  [5,3],[6,2],[6,2],[6,3],[7,2],
+  [7,2],[7,3],[8,2],[8,2],[8,3],
+  [8,3],[8,3],[8,3],[8,3],[8,3],
+];
+
+let tubes = [], history = [], selected = -1;
+let level = 1, moves = 0, animating = false;
+let adTimer = null, adOnClose = null;
+
+// ── INIT ──────────────────────────────────
+function init(){
+  const cfg = LEVEL_CFG[Math.min(level-1, LEVEL_CFG.length-1)];
+  const numColors = cfg[0], extraEmpty = cfg[1];
+  const totalTubes = numColors + extraEmpty;
+
+  // Build balls array: numColors × TUBE_CAPACITY balls each color
+  let balls = [];
+  for(let c=0;c<numColors;c++)
+    for(let i=0;i<TUBE_CAPACITY;i++) balls.push(c);
+
+  // Shuffle
+  for(let i=balls.length-1;i>0;i--){
+    const j=Math.floor(Math.random()*(i+1));
+    [balls[i],balls[j]]=[balls[j],balls[i]];
+  }
+
+  // Fill tubes
+  tubes = [];
+  for(let t=0;t<numColors;t++){
+    tubes.push(balls.slice(t*TUBE_CAPACITY,(t+1)*TUBE_CAPACITY));
+  }
+  // Add empty tubes
+  for(let e=0;e<extraEmpty;e++) tubes.push([]);
+
+  history = [];
+  selected = -1;
+  moves = 0;
+  animating = false;
+  updateUI();
+  render();
+}
+
+// ── RENDER ─────────────────────────────────
+function render(){
+  const wrap = document.getElementById('tubes');
+  wrap.innerHTML = '';
+
+  const numTubes = tubes.length;
+  // Responsive tube sizing
+  const maxPerRow = numTubes <= 6 ? 3 : numTubes <= 8 ? 4 : 5;
+  const tubeW = numTubes <= 6 ? 58 : numTubes <= 8 ? 52 : 46;
+  const ballSz = tubeW - 14;
+
+  document.documentElement.style.setProperty('--tube-w', tubeW+'px');
+  document.documentElement.style.setProperty('--ball-size', ballSz+'px');
+
+  for(let t=0;t<tubes.length;t++){
+    const tubeEl = document.createElement('div');
+    tubeEl.className = 'tube';
+    tubeEl.dataset.idx = t;
+
+    if(t === selected) tubeEl.classList.add('selected');
+    if(isSolved(tubes[t])) tubeEl.classList.add('solved');
+
+    // Show valid targets
+    if(selected >= 0 && t !== selected && canMove(selected, t))
+      tubeEl.classList.add('valid-target');
+
+    // Balls (bottom to top visually = render in reverse)
+    const ballsToShow = [...tubes[t]]; // index 0 = bottom
+    // Add empty slots
+    const empties = TUBE_CAPACITY - ballsToShow.length;
+    for(let e=0;e<empties;e++){
+      const slot = document.createElement('div');
+      slot.style.cssText=`width:${ballSz}px;height:${ballSz}px;flex-shrink:0`;
+      tubeEl.appendChild(slot);
+    }
+    // Balls bottom to top (HTML top = visual bottom with column flex)
+    for(let b=ballsToShow.length-1;b>=0;b--){
+      const ballEl = document.createElement('div');
+      ballEl.className = `ball c${ballsToShow[b]}`;
+      tubeEl.appendChild(ballEl);
+    }
+
+    tubeEl.addEventListener('click', ()=>onTubeClick(t));
+    wrap.appendChild(tubeEl);
+  }
+}
+
+// ── CLICK HANDLER ──────────────────────────
+function onTubeClick(idx){
+  if(animating) return;
+
+  if(selected < 0){
+    // Nothing selected yet
+    if(tubes[idx].length === 0) return; // empty tube, ignore
+    if(isSolved(tubes[idx])) return;    // already complete
+    selected = idx;
+    render();
+    return;
+  }
+
+  if(selected === idx){
+    // Deselect
+    selected = -1;
+    render();
+    return;
+  }
+
+  if(canMove(selected, idx)){
+    doMove(selected, idx);
+  } else {
+    // Shake invalid
+    selected = -1;
+    render();
+    const tubeEl = document.querySelector(`[data-idx="${idx}"]`);
+    tubeEl?.classList.add('invalid-shake');
+    setTimeout(()=>tubeEl?.classList.remove('invalid-shake'), 400);
+  }
+}
+
+// ── MOVE LOGIC ─────────────────────────────
+function canMove(from, to){
+  if(tubes[from].length === 0) return false;
+  if(tubes[to].length >= TUBE_CAPACITY) return false;
+  if(tubes[to].length === 0) return true;
+  const topFrom = tubes[from][tubes[from].length-1];
+  const topTo   = tubes[to][tubes[to].length-1];
+  return topFrom === topTo;
+}
+
+async function doMove(from, to){
+  animating = true;
+
+  // Save to history
+  history.push(tubes.map(t=>[...t]));
+
+  // Animate flying ball
+  await animateFly(from, to);
+
+  // Update data
+  const ball = tubes[from].pop();
+  tubes[to].push(ball);
+  moves++;
+  selected = -1;
+
+  updateUI();
+  render();
+
+  // Check win
+  if(isGameSolved()){
+    setTimeout(()=>showWin(), 300);
+  }
+
+  animating = false;
+}
+
+// ── ANIMATION ──────────────────────────────
+async function animateFly(from, to){
+  return new Promise(resolve => {
+    const fromEl = document.querySelector(`[data-idx="${from}"]`);
+    const toEl   = document.querySelector(`[data-idx="${to}"]`);
+    if(!fromEl || !toEl){ resolve(); return; }
+
+    const fromBall = fromEl.querySelector('.ball');
+    const color = tubes[from][tubes[from].length-1];
+
+    if(!fromBall){ resolve(); return; }
+
+    const fromRect = fromBall.getBoundingClientRect();
+    const toRect   = toEl.getBoundingClientRect();
+
+    // Target position: top of destination tube stack
+    const ballsInDest = tubes[to].length;
+    const ballSz = parseInt(getComputedStyle(document.documentElement).getPropertyValue('--ball-size'));
+    const targetY = toRect.bottom - (ballsInDest+1)*(ballSz+4) - 14;
+    const targetX = toRect.left + (toRect.width - ballSz)/2;
+
+    const fly = document.getElementById('fly-ball');
+    fly.className = `c${color}`;
+    fly.style.cssText = `
+      display:block;
+      width:${ballSz}px;height:${ballSz}px;border-radius:50%;
+      position:fixed;
+      left:${fromRect.left}px;top:${fromRect.top}px;
+      z-index:500;pointer-events:none;
+      transition:left .28s cubic-bezier(.4,0,.2,1),top .28s cubic-bezier(.4,0,.2,1);
+    `;
+
+    // Hide source ball
+    fromBall.style.opacity = '0';
+
+    requestAnimationFrame(()=>{
+      requestAnimationFrame(()=>{
+        fly.style.left = targetX + 'px';
+        fly.style.top  = targetY + 'px';
+      });
+    });
+
+    setTimeout(()=>{
+      fly.style.display = 'none';
+      fromBall.style.opacity = '1';
+      resolve();
+    }, 300);
+  });
+}
+
+// ── UNDO ───────────────────────────────────
+function undo(){
+  if(animating || history.length === 0) return;
+  tubes = history.pop();
+  selected = -1;
+  if(moves > 0) moves--;
+  updateUI();
+  render();
+}
+
+// ── HINT ───────────────────────────────────
+function showHint(){
+  if(animating) return;
+  selected = -1;
+  for(let f=0;f<tubes.length;f++){
+    if(tubes[f].length === 0) continue;
+    if(isSolved(tubes[f])) continue;
+    for(let t=0;t<tubes.length;t++){
+      if(f===t) continue;
+      if(canMove(f,t)){
+        // Highlight
+        const fromEl = document.querySelector(`[data-idx="${f}"]`);
+        const toEl   = document.querySelector(`[data-idx="${t}"]`);
+        fromEl?.classList.add('selected');
+        toEl?.classList.add('valid-target');
+        setTimeout(()=>{ fromEl?.classList.remove('selected'); toEl?.classList.remove('valid-target'); }, 1200);
+        return;
+      }
+    }
+  }
+}
+
+// ── SOLVE CHECKS ───────────────────────────
+function isSolved(tube){
+  if(tube.length === 0) return true;
+  if(tube.length !== TUBE_CAPACITY) return false;
+  return tube.every(b => b === tube[0]);
+}
+
+function isGameSolved(){
+  return tubes.every(t => isSolved(t));
+}
+
+// ── WIN / NEXT ──────────────────────────────
+function showWin(){
+  spawnParticles();
+  document.getElementById('win-lvl').textContent = level;
+
+  // Stars based on moves
+  const cfg = LEVEL_CFG[Math.min(level-1, LEVEL_CFG.length-1)];
+  const colors = cfg[0];
+  const optMoves = colors * TUBE_CAPACITY;
+  const stars = moves <= optMoves ? 3 : moves <= optMoves*1.7 ? 2 : 1;
+  document.getElementById('star-row').textContent = '⭐'.repeat(stars) + '☆'.repeat(3-stars);
+
+  document.getElementById('win-overlay').classList.add('show');
+}
+
+function nextLevel(){
+  document.getElementById('win-overlay').classList.remove('show');
+  // Every 3 levels show interstitial
+  if(level % 3 === 0){
+    showInterstitialAd(()=>{ level++; init(); });
+  } else {
+    level++;
+    init();
+  }
+}
+
+function restartLevel(){
+  if(animating) return;
+  selected = -1;
+  init();
+}
+
+// ── UI UPDATE ──────────────────────────────
+function updateUI(){
+  document.getElementById('h-level').textContent = level;
+  document.getElementById('h-moves').textContent = moves;
+  document.getElementById('lvl-txt').textContent = `Level ${level} / 20`;
+  const pct = ((level-1)/20)*100;
+  document.getElementById('lvl-fill').style.width = Math.max(5,pct)+'%';
+}
+
+// ── PARTICLES ──────────────────────────────
+function spawnParticles(){
+  const colors = ['#ff6b6b','#ffc947','#80ff72','#7ee8fa','#ce93d8','#80deea'];
+  const cx = window.innerWidth/2, cy = window.innerHeight/2;
+  for(let i=0;i<22;i++){
+    const p = document.createElement('div');
+    p.className = 'particle';
+    const angle = (i/22)*Math.PI*2;
+    const dist = 80 + Math.random()*100;
+    p.style.cssText=`
+      left:${cx}px;top:${cy}px;
+      background:${colors[i%colors.length]};
+      --tx:${Math.cos(angle)*dist}px;
+      --ty:${Math.sin(angle)*dist}px;
+      animation-delay:${Math.random()*0.2}s;
+    `;
+    document.body.appendChild(p);
+    setTimeout(()=>p.remove(), 1100);
+  }
+}
+
+// ── META ADS ───────────────────────────────
+function showInterstitialAd(onClose){
+  adOnClose = onClose;
+  const el = document.getElementById('meta-inter');
+  el.classList.add('show');
+  let cd = 5;
+  document.getElementById('ad-cd').textContent = cd;
+  adTimer = setInterval(()=>{
+    cd--;
+    const cdEl = document.getElementById('ad-cd');
+    if(cdEl) cdEl.textContent = cd;
+    if(cd <= 0) clearInterval(adTimer);
+  },1000);
+}
+
+function closeInterAd(){
+  clearInterval(adTimer);
+  document.getElementById('meta-inter').classList.remove('show');
+  if(adOnClose){ adOnClose(); adOnClose=null; }
+}
+
+// ── START ──────────────────────────────────
+init();
+</script>
+</body>
+</html>
